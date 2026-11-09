@@ -61,7 +61,7 @@ Los campos del formulario incluyen cliente, servicio, referencia, valor, fecha y
 
 ## 8. Interfaz
 
-La interfaz en español contiene formulario para crear y editar, lista de pagos, edición, confirmación antes de borrar, mensajes, carga y estado vacío. Los importes se presentan en COP. La conexión y el CRUD real están verificados; todavía no se han tomado capturas de pantalla para `evidencias/`.
+La interfaz en español contiene formulario para crear y editar, lista de pagos, edición, confirmación antes de borrar, mensajes, carga y estado vacío. Los importes se presentan en COP. El módulo **Conectar / reintentar** consulta `/api/health`, muestra el estado de Render y Aiven e intenta de nuevo por un periodo limitado si el servicio gratuito está despertando. No mantiene pings activos en segundo plano. La conexión y el CRUD real están verificados; todavía no se han tomado capturas de pantalla para `evidencias/`.
 
 ## 9. Pruebas realizadas
 
@@ -73,7 +73,7 @@ Desde la carpeta raíz, entrar a `backend/`, instalar con `npm install`, complet
 
 ## 11. Preparación del despliegue
 
-El proyecto incluye `start`, escucha `process.env.PORT`, sirve frontend y API desde Express y no tiene dependencias de despliegue separadas. En Render se puede usar `cd backend && npm ci` para instalar y `cd backend && npm start` para arrancar. Las variables privadas se configuran en Environment; la CA se agrega como Secret File `ca.pem` y `DB_CA_PATH` se define como `/etc/secrets/ca.pem`. Render expone los Secret Files bajo `/etc/secrets/` durante la ejecución ([documentación oficial](https://render.com/docs/configure-environment-variables)). No se ha desplegado y no existe URL pública verificada.
+El proyecto incluye `start`, escucha `process.env.PORT`, sirve frontend y API desde Express y no tiene dependencias de despliegue separadas. En Render se puede usar `cd backend && npm ci` para instalar y `cd backend && npm start` para arrancar. Las variables privadas se configuran en Environment; la CA se agrega como Secret File `ca.pem` y `DB_CA_PATH` se define como `/etc/secrets/ca.pem`. Render expone los Secret Files bajo `/etc/secrets/` durante la ejecución ([documentación oficial](https://render.com/docs/configure-environment-variables)). En el plan gratuito Render duerme los servicios tras 15 minutos sin tráfico y los reactiva con la siguiente solicitud; el botón de conexión permite reintentar y comprobar la base durante ese arranque ([límites del plan gratuito](https://render.com/docs/free)). El proyecto sí se desplegó en `https://aiveneje3.onrender.com`; la ruta `/api/health` se comprobó conectada.
 
 ## 12. Variables de entorno
 
@@ -92,7 +92,7 @@ La configuración privada queda en `backend/.env`; no se guardan variables en el
 
 ## 13. Conclusiones
 
-Pay Services implementa un CRUD web sencillo conectado a una base MySQL real. La tabla observada, las seis pruebas unitarias, el ciclo CRUD, la persistencia tras reiniciar y la eliminación de datos temporales se verificaron. El siguiente paso para publicarlo es configurar Render y sus variables privadas y certificado CA; no hay URL pública todavía.
+Pay Services implementa un CRUD web sencillo conectado a una base MySQL real. La tabla observada, las seis pruebas unitarias, el ciclo CRUD, la persistencia tras reiniciar y la eliminación de datos temporales se verificaron. El servicio está desplegado en https://aiveneje3.onrender.com y `/api/health` confirmó que Aiven está conectado. El botón permite comprobar y reintentar la conexión después de la suspensión por inactividad del plan gratuito; no envía pings permanentes. Las capturas de la actividad aún deben agregarse a `evidencias/` y al PDF final.
 
 ## 14. Referencias técnicas
 
@@ -101,5 +101,6 @@ Pay Services implementa un CRUD web sencillo conectado a una base MySQL real. La
 - MySQL2, guía de TLS: https://sidorares.github.io/node-mysql2/docs/documentation/ssl
 - Aiven, certificados TLS/SSL: https://aiven.io/docs/platform/concepts/tls-ssl-certificates
 - Aiven, conexión a MySQL: https://aiven.io/docs/products/mysql/howto/connect-from-mysql-workbench
+- Render, límites del plan gratuito: https://render.com/docs/free
 - Render, Web Services: https://render.com/docs/web-services
 - Render, variables de entorno y secretos: https://render.com/docs/configure-environment-variables

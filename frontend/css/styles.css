@@ -30,6 +30,20 @@ button, input, select { font: inherit; }
 h1 { margin: 0; color: #153b55; font-size: 27px; line-height: 1.2; }
 .subtitle { margin: 10px 0 24px; color: #63737d; }
 
+.connection-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 16px 0;
+  padding: 14px 18px;
+  border: 1px solid #d9e7e7;
+  border-radius: 9px;
+  background: #edf6f5;
+}
+.connection-panel .eyebrow { margin-bottom: 3px; }
+.connection-status { margin: 0; color: #49616b; font-size: 13px; }
+
 .card {
   margin: 16px 0;
   padding: 22px;
@@ -93,5 +107,6 @@ footer { padding: 8px 2px; color: #819098; font-size: 12px; }
 @media (max-width: 480px) {
   .form-grid { grid-template-columns: 1fr; }
   .list-heading { align-items: flex-start; }
+  .connection-panel { align-items: flex-start; flex-direction: column; }
   th, td { padding: 9px 7px; }
 }

@@ -56,6 +56,10 @@ npm start
 
 Abre <http://localhost:3000>. Para cambios con reinicio automático usa `npm run dev`.
 
+## Reactivar el servicio gratuito en Render
+
+Render puede suspender una instancia gratuita tras 15 minutos sin tráfico. La primera solicitud vuelve a iniciarla y puede tardar cerca de un minuto. Al abrir el sitio, esa visita ya inicia la instancia; el botón **Conectar / reintentar** de Pay Services consulta `/api/health`, muestra el estado de Aiven y reintenta durante un tiempo limitado si Render sigue despertando. No envía pings permanentes ni evita que Render suspenda la instancia por inactividad. [Límites del plan gratuito de Render](https://render.com/docs/free).
+
 ## Base de datos
 
 Cuando completes `backend/.env`, desde `backend/` revisa primero las tablas y relaciones reales:
@@ -93,7 +97,7 @@ Frontend y API se despliegan juntos en un Web Service:
 - Start command: `cd backend && npm start`
 - En Environment añade las variables privadas de `backend/.env` y `DB_SSL=true`. Agrega `ca.pem` en Secret Files y establece `DB_CA_PATH=/etc/secrets/ca.pem`. Render expone los archivos secretos bajo `/etc/secrets/` en tiempo de ejecución ([documentación](https://render.com/docs/configure-environment-variables)). No subas `.env` ni el certificado CA al repositorio.
 
-Render está preparado, pero el servicio no se ha publicado y aún no hay URL.
+Servicio desplegado: [https://aiveneje3.onrender.com](https://aiveneje3.onrender.com). La conexión `/api/health` se comprobó con estado `ok` y base `connected`. En el plan gratuito Render puede dormir el servicio tras 15 minutos sin tráfico; el botón **Conectar / reintentar** consulta su estado y reintenta durante el arranque, pero no mantiene el servicio activo en segundo plano.
 
 ## Documentos
 

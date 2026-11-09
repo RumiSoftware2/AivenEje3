@@ -36,8 +36,8 @@ def markup(value):
 
 
 styles = getSampleStyleSheet()
-styles.add(ParagraphStyle(name='BodyES', parent=styles['BodyText'], fontName='Helvetica', fontSize=9.4,
-                          leading=14.2, textColor=INK, spaceAfter=7, alignment=TA_LEFT))
+styles.add(ParagraphStyle(name='BodyES', parent=styles['BodyText'], fontName='Helvetica', fontSize=9.2,
+                          leading=13.2, textColor=INK, spaceAfter=6, alignment=TA_LEFT))
 styles.add(ParagraphStyle(name='SectionES', parent=styles['Heading2'], fontName='Helvetica-Bold',
                           fontSize=15, leading=19, textColor=NAVY, spaceBefore=13, spaceAfter=8,
                           keepWithNext=True))
@@ -48,7 +48,7 @@ styles.add(ParagraphStyle(name='CalloutES', parent=styles['BodyES'], backColor=P
                           borderWidth=0, borderPadding=8, leftIndent=7, rightIndent=5, spaceBefore=5,
                           spaceAfter=10, textColor=NAVY))
 styles.add(ParagraphStyle(name='BulletES', parent=styles['BodyES'], leftIndent=14, firstLineIndent=-9,
-                          bulletIndent=0, spaceAfter=4))
+                          bulletIndent=0, spaceAfter=2))
 styles.add(ParagraphStyle(name='TableHeadES', parent=styles['BodyES'], fontName='Helvetica-Bold',
                           fontSize=8, leading=10, textColor=colors.white, spaceAfter=0))
 styles.add(ParagraphStyle(name='TableCellES', parent=styles['BodyES'], fontSize=8, leading=10,
@@ -140,8 +140,8 @@ def parse_body(lines):
                 ('VALIGN', (0, 0), (-1, -1), 'TOP'),
                 ('LEFTPADDING', (0, 0), (-1, -1), 6),
                 ('RIGHTPADDING', (0, 0), (-1, -1), 6),
-                ('TOPPADDING', (0, 0), (-1, -1), 6),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                ('TOPPADDING', (0, 0), (-1, -1), 4),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
             ]))
             story.append(table)
             story.append(Spacer(1, 8))
@@ -159,8 +159,6 @@ def parse_body(lines):
             continue
         if line.startswith('## '):
             flush_paragraph()
-            if line.startswith('## 12.'):
-                story.append(PageBreak())
             story.append(Paragraph(markup(line[3:]), styles['SectionES']))
         elif line.startswith('### '):
             flush_paragraph()

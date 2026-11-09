@@ -6,8 +6,11 @@ const loading = document.querySelector('#loading');
 const empty = document.querySelector('#empty-state');
 const submit = document.querySelector('#submit-button');
 const cancel = document.querySelector('#cancel-button');
+const connectButton = document.querySelector('#connect-server-button');
+const serverStatus = document.querySelector('#server-status');
 
 let editingId = null;
+let connecting = false;
 const formatMoney = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
 const formatDate = new Intl.DateTimeFormat('es-CO', { dateStyle: 'medium', timeZone: 'UTC' });
 
@@ -70,6 +73,58 @@ async function loadPayments() {
   finally { loading.hidden = true; }
 }
 
+const wait = (milliseconds) => new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+
+async function connectServer() {
+  if (connecting) return;
+  connecting = true;
+  connectButton.disabled = true;
+
+  try {
+    for (let attempt = 1; attempt <= 8; attempt += 1) {
+      serverStatus.textContent = `Conectando con Render y Aiven (intento ${attempt} de 8)...`;
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 7000);
+
+      try {
+        const response = await fetch('/api/health', { cache: 'no-store', signal: controller.signal });
+        const data = await response.json().catch(() => null);
+
+        if (response.ok && data?.status === 'ok' && data.database === 'connected') {
+          serverStatus.textContent = 'Servidor y base de datos conectados.';
+          showMessage('Conexión lista.');
+          await loadPayments();
+          return;
+        }
+
+        if (data?.database === 'unavailable') {
+          serverStatus.textContent = 'Render respondió, pero no pudo conectar con Aiven. Inténtalo de nuevo más tarde.';
+          showMessage('La base de datos no está disponible.', true);
+          return;
+        }
+
+        if (response.status !== 502 && response.status !== 503) {
+          serverStatus.textContent = `El servidor respondió con HTTP ${response.status}.`;
+          showMessage('No fue posible conectar con el servidor.', true);
+          return;
+        }
+      } catch {
+        // Render puede tardar en despertar después de un periodo de inactividad.
+      } finally {
+        window.clearTimeout(timeout);
+      }
+
+      if (attempt < 8) await wait(5000);
+    }
+
+    serverStatus.textContent = 'Render aún no responde. Espera un momento y vuelve a intentarlo.';
+    showMessage('El servidor sigue iniciando; vuelve a intentar en unos segundos.', true);
+  } finally {
+    connecting = false;
+    connectButton.disabled = false;
+  }
+}
+
 function resetForm() {
   form.reset();
   editingId = null;
@@ -125,4 +180,5 @@ form.addEventListener('submit', async (event) => {
 
 cancel.addEventListener('click', resetForm);
 document.querySelector('#refresh-button').addEventListener('click', loadPayments);
+connectButton.addEventListener('click', connectServer);
 loadPayments();
