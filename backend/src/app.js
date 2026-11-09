@@ -11,7 +11,11 @@ app.get('/api/health', async (_req, res) => {
   try {
     await checkDatabase();
     res.json({ status: 'ok', database: 'connected' });
-  } catch {
+  } catch (error) {
+    const code = error.code ||
+      (error.message?.includes('certificado CA') ? 'DB_CA_NOT_FOUND' :
+        error.message?.startsWith('Faltan variables:') ? 'DB_ENV_MISSING' : 'DB_CONFIG_ERROR');
+    console.error(`Comprobación de base de datos fallida (${code}).`);
     res.status(503).json({ status: 'error', database: 'unavailable' });
   }
 });
