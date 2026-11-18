@@ -27,7 +27,25 @@
       <button class="button button-primary" id="connect-server-button" type="button">Conectar / reintentar</button>
     </section>
 
-    <section class="card" aria-labelledby="form-title">
+    <section class="card login-card" id="login-view" aria-labelledby="login-title">
+      <h2 id="login-title">Iniciar sesión</h2>
+      <p>Ingresa con la cuenta que te asignó el administrador.</p>
+      <form id="login-form">
+        <div class="field"><label for="login-user">Usuario</label><input id="login-user" name="usuario" type="text" minlength="3" maxlength="80" autocomplete="username" required></div>
+        <div class="field"><label for="login-password">Contraseña</label><input id="login-password" name="password" type="password" autocomplete="current-password" required></div>
+        <div class="form-actions"><button class="button button-primary" id="login-button" type="submit">Entrar</button></div>
+      </form>
+      <div class="message" id="login-message" role="status" aria-live="polite" hidden></div>
+    </section>
+
+    <div id="app-view" hidden>
+      <section class="role-banner" aria-label="Sesión activa">
+        <div><strong id="role-title"></strong><span id="role-description"></span></div>
+        <button class="button" id="logout-button" type="button">Cerrar sesión</button>
+      </section>
+      <div class="message" id="app-message" role="status" aria-live="polite" hidden></div>
+
+    <section class="card" id="payment-form-card" aria-labelledby="form-title">
       <h2 id="form-title">Registrar pago</h2>
       <form id="payment-form">
         <div class="form-grid">
@@ -42,13 +60,13 @@
       </form>
     </section>
 
-    <section class="card" aria-labelledby="list-title">
+    <section class="card" id="payment-list-card" aria-labelledby="list-title">
       <div class="list-heading"><div><h2 id="list-title">Pagos registrados</h2><p><span id="payment-count">0</span> registros</p></div><button class="button" id="refresh-button" type="button">Actualizar lista</button></div>
-      <div class="message" id="message" role="status" aria-live="polite" hidden></div>
       <p class="loading" id="loading">Cargando pagos...</p>
       <p class="empty-state" id="empty-state" hidden>No hay pagos registrados.</p>
-      <div class="table-scroll"><table><thead><tr><th>Cliente</th><th>Servicio</th><th>Referencia</th><th>Fecha</th><th>Valor</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="payment-list"></tbody></table></div>
+      <div class="table-scroll"><table><thead><tr><th>Cliente</th><th>Servicio</th><th>Referencia</th><th>Fecha</th><th>Valor</th><th>Estado</th><th id="actions-heading">Acciones</th></tr></thead><tbody id="payment-list"></tbody></table></div>
     </section>
+    </div>
 
     <footer>
       <p>Pay Services · Proyecto académico · Areandina</p>

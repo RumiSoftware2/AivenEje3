@@ -9,6 +9,10 @@
     "dev": "node --watch server.js",
     "db:inspect": "node scripts/inspect-db.js",
     "db:setup": "node scripts/setup-db.js",
+    "db:setup-users": "node scripts/setup-users.js",
+    "user:create": "node scripts/create-user.js",
+    "users:create-demo": "node scripts/create-demo-users.js",
+    "test:roles": "node scripts/smoke-roles.js",
     "test": "node --test"
   },
   "engines": { "node": ">=20" },

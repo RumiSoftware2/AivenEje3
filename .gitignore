@@ -1,5 +1,6 @@
 node_modules/
 .env
+backend/credenciales-roles-local.txt
 certs/
 coverage/
 npm-debug.log*

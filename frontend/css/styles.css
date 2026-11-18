@@ -60,6 +60,23 @@ h1 { margin: 0; color: #153b55; font-size: 27px; line-height: 1.2; }
 }
 .connection-panel .eyebrow { margin-bottom: 3px; }
 .connection-status { margin: 0; color: #49616b; font-size: 13px; }
+.login-card { max-width: 520px; margin: 22px auto; }
+.login-card > p { margin-top: -8px; color: #63737d; }
+.login-card form { display: grid; gap: 14px; }
+.role-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 20px 0 14px;
+  padding: 13px 16px;
+  border: 1px solid #d9e7e7;
+  border-radius: 9px;
+  background: #edf6f5;
+}
+.role-banner > div { display: grid; gap: 2px; }
+.role-banner strong { color: #153b55; }
+.role-banner span { color: #49616b; font-size: 13px; }
 
 .card {
   margin: 16px 0;
@@ -137,6 +154,7 @@ footer > p { margin: 0 0 12px; }
   .form-grid { grid-template-columns: 1fr; }
   .list-heading { align-items: flex-start; }
   .connection-panel { align-items: flex-start; flex-direction: column; }
+  .role-banner { align-items: flex-start; flex-direction: column; }
   .official-logo { width: min(100%, 360px); margin-left: 0; }
   .authors { align-items: flex-start; flex-direction: column; gap: 4px; }
   th, td { padding: 9px 7px; }

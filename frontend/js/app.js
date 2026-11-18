@@ -1,6 +1,15 @@
+const loginView = document.querySelector('#login-view');
+const appView = document.querySelector('#app-view');
+const loginForm = document.querySelector('#login-form');
+const loginButton = document.querySelector('#login-button');
+const loginMessage = document.querySelector('#login-message');
+const roleTitle = document.querySelector('#role-title');
+const roleDescription = document.querySelector('#role-description');
+const appMessage = document.querySelector('#app-message');
 const form = document.querySelector('#payment-form');
+const formCard = document.querySelector('#payment-form-card');
+const listCard = document.querySelector('#payment-list-card');
 const list = document.querySelector('#payment-list');
-const message = document.querySelector('#message');
 const count = document.querySelector('#payment-count');
 const loading = document.querySelector('#loading');
 const empty = document.querySelector('#empty-state');
@@ -8,31 +17,72 @@ const submit = document.querySelector('#submit-button');
 const cancel = document.querySelector('#cancel-button');
 const connectButton = document.querySelector('#connect-server-button');
 const serverStatus = document.querySelector('#server-status');
+const actionsHeading = document.querySelector('#actions-heading');
 
 let editingId = null;
 let connecting = false;
+let currentUser = null;
 const formatMoney = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
 const formatDate = new Intl.DateTimeFormat('es-CO', { dateStyle: 'medium', timeZone: 'UTC' });
 
 async function api(url, options = {}) {
-  const response = await fetch(url, options);
+  const response = await fetch(url, { credentials: 'same-origin', ...options });
   if (response.status === 204) return null;
   const data = await response.json().catch(() => ({}));
+  if (response.status === 401) showLogin(data.error || 'Tu sesión terminó. Inicia sesión nuevamente.');
   if (!response.ok) throw new Error(data.error || 'No fue posible completar la solicitud.');
   return data;
 }
 
-function showMessage(text, error = false) {
-  message.textContent = text;
-  message.className = error ? 'message error' : 'message success';
-  message.hidden = false;
-  window.setTimeout(() => { message.hidden = true; }, 4000);
+function showMessage(text, error = false, target = appMessage) {
+  target.textContent = text;
+  target.className = error ? 'message error' : 'message success';
+  target.hidden = false;
+  window.setTimeout(() => { target.hidden = true; }, 5000);
+}
+
+function showLogin(text = '') {
+  currentUser = null;
+  appView.hidden = true;
+  loginView.hidden = false;
+  resetForm();
+  if (text) showMessage(text, true, loginMessage);
+}
+
+function enterApp(user) {
+  currentUser = user;
+  loginView.hidden = true;
+  appView.hidden = false;
+  appMessage.hidden = true;
+  roleTitle.textContent = `${user.usuario} · ${roleName(user.rol)}`;
+  roleDescription.textContent = roleDescriptionText(user.rol);
+  formCard.hidden = user.rol === 'consulta';
+  listCard.hidden = user.rol === 'registro';
+  actionsHeading.hidden = user.rol !== 'admin';
+  document.querySelector('#refresh-button').hidden = user.rol === 'registro';
+  document.querySelector('#form-title').textContent = user.rol === 'registro' ? 'Agregar pago' : 'Registrar pago';
+  submit.textContent = 'Guardar pago';
+  cancel.hidden = true;
+  if (user.rol === 'admin' || user.rol === 'consulta') loadPayments();
+}
+
+function roleName(role) {
+  return ({ admin: 'Administrador', consulta: 'Consulta', registro: 'Registro' })[role] || 'Usuario';
+}
+
+function roleDescriptionText(role) {
+  return ({
+    admin: 'Puede consultar y administrar todos los pagos.',
+    consulta: 'Puede consultar los pagos; las acciones de edición están deshabilitadas.',
+    registro: 'Puede agregar pagos; no puede consultar ni modificar los registros existentes.'
+  })[role] || '';
 }
 
 function addCell(row, text) {
   const cell = document.createElement('td');
   cell.textContent = text;
   row.append(cell);
+  return cell;
 }
 
 function renderPayments(payments) {
@@ -50,22 +100,25 @@ function renderPayments(payments) {
     addCell(row, formatMoney.format(Number(payment.valor)));
     addCell(row, payment.estado);
 
-    const actions = document.createElement('td');
-    const edit = document.createElement('button');
-    edit.className = 'button button-small';
-    edit.textContent = 'Editar';
-    edit.addEventListener('click', () => editPayment(payment.id));
-    const remove = document.createElement('button');
-    remove.className = 'button button-small button-danger';
-    remove.textContent = 'Eliminar';
-    remove.addEventListener('click', () => deletePayment(payment));
-    actions.append(edit, remove);
-    row.append(actions);
+    const actions = addCell(row, '');
+    actions.hidden = currentUser?.rol !== 'admin';
+    if (currentUser?.rol === 'admin') {
+      const edit = document.createElement('button');
+      edit.className = 'button button-small';
+      edit.textContent = 'Editar';
+      edit.addEventListener('click', () => editPayment(payment.id));
+      const remove = document.createElement('button');
+      remove.className = 'button button-small button-danger';
+      remove.textContent = 'Eliminar';
+      remove.addEventListener('click', () => deletePayment(payment));
+      actions.append(edit, remove);
+    }
     list.append(row);
   }
 }
 
 async function loadPayments() {
+  if (!currentUser || currentUser.rol === 'registro') return;
   loading.hidden = false;
   empty.hidden = true;
   try { renderPayments(await api('/api/pagos')); }
@@ -79,46 +132,35 @@ async function connectServer() {
   if (connecting) return;
   connecting = true;
   connectButton.disabled = true;
-
   try {
     for (let attempt = 1; attempt <= 8; attempt += 1) {
-      serverStatus.textContent = `Conectando con Render y Aiven (intento ${attempt} de 8)...`;
+      serverStatus.textContent = `Conectando servidor y Aiven (intento ${attempt} de 8)...`;
       const controller = new AbortController();
       const timeout = window.setTimeout(() => controller.abort(), 7000);
-
       try {
         const response = await fetch('/api/health', { cache: 'no-store', signal: controller.signal });
         const data = await response.json().catch(() => null);
-
         if (response.ok && data?.status === 'ok' && data.database === 'connected') {
           serverStatus.textContent = 'Servidor y base de datos conectados.';
-          showMessage('Conexión lista.');
-          await loadPayments();
+          if (currentUser) await loadPayments();
+          else showMessage('Conexión disponible. Inicia sesión.', false, loginMessage);
           return;
         }
-
         if (data?.database === 'unavailable') {
-          serverStatus.textContent = 'Render respondió, pero no pudo conectar con Aiven. Inténtalo de nuevo más tarde.';
-          showMessage('La base de datos no está disponible.', true);
+          serverStatus.textContent = 'El servidor respondió, pero la base de datos no está disponible.';
+          showMessage('No fue posible conectar con la base de datos.', true, currentUser ? appMessage : loginMessage);
           return;
         }
-
         if (response.status !== 502 && response.status !== 503) {
           serverStatus.textContent = `El servidor respondió con HTTP ${response.status}.`;
-          showMessage('No fue posible conectar con el servidor.', true);
           return;
         }
       } catch {
-        // Render puede tardar en despertar después de un periodo de inactividad.
-      } finally {
-        window.clearTimeout(timeout);
-      }
-
+        // El servidor gratuito puede tardar en despertar.
+      } finally { window.clearTimeout(timeout); }
       if (attempt < 8) await wait(5000);
     }
-
-    serverStatus.textContent = 'Render aún no responde. Espera un momento y vuelve a intentarlo.';
-    showMessage('El servidor sigue iniciando; vuelve a intentar en unos segundos.', true);
+    serverStatus.textContent = 'El servidor aún no responde. Espera y vuelve a intentarlo.';
   } finally {
     connecting = false;
     connectButton.disabled = false;
@@ -128,12 +170,14 @@ async function connectServer() {
 function resetForm() {
   form.reset();
   editingId = null;
-  document.querySelector('#form-title').textContent = 'Registrar pago';
-  submit.textContent = 'Guardar pago';
-  cancel.hidden = true;
+  const title = document.querySelector('#form-title');
+  if (title) title.textContent = currentUser?.rol === 'registro' ? 'Agregar pago' : 'Registrar pago';
+  if (submit) submit.textContent = 'Guardar pago';
+  if (cancel) cancel.hidden = true;
 }
 
 async function editPayment(id) {
+  if (currentUser?.rol !== 'admin') return;
   try {
     const payment = await api(`/api/pagos/${id}`);
     for (const field of ['cliente', 'servicio', 'referencia', 'valor', 'fecha_pago', 'estado']) {
@@ -148,6 +192,7 @@ async function editPayment(id) {
 }
 
 async function deletePayment(payment) {
+  if (currentUser?.rol !== 'admin') return;
   if (!window.confirm(`¿Eliminar el pago de ${payment.cliente}?`)) return;
   try {
     await api(`/api/pagos/${payment.id}`, { method: 'DELETE' });
@@ -157,23 +202,46 @@ async function deletePayment(payment) {
   } catch (error) { showMessage(error.message, true); }
 }
 
+loginForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  if (!loginForm.reportValidity()) return;
+  loginButton.disabled = true;
+  loginMessage.hidden = true;
+  const data = Object.fromEntries(new FormData(loginForm));
+  try {
+    const response = await fetch('/api/auth/login', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || 'No fue posible iniciar sesión.');
+    loginForm.reset();
+    enterApp(result.user);
+  } catch (error) { showMessage(error.message, true, loginMessage); }
+  finally { loginButton.disabled = false; }
+});
+
+document.querySelector('#logout-button').addEventListener('click', async () => {
+  try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }); }
+  catch { /* Se limpia la vista local aunque la conexión falle. */ }
+  showLogin('Sesión cerrada.');
+});
+
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
-  if (!form.reportValidity()) return;
+  if (!form.reportValidity() || !currentUser) return;
   const data = Object.fromEntries(new FormData(form));
   data.valor = Number(data.valor);
-  const method = editingId ? 'PUT' : 'POST';
-
+  const updating = currentUser.rol === 'admin' && editingId !== null;
+  const method = updating ? 'PUT' : 'POST';
   submit.disabled = true;
   try {
-    await api(editingId ? `/api/pagos/${editingId}` : '/api/pagos', {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
+    await api(updating ? `/api/pagos/${editingId}` : '/api/pagos', {
+      method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
     });
-    showMessage(editingId ? 'Pago actualizado.' : 'Pago guardado.');
+    showMessage(updating ? 'Pago actualizado.' : 'Pago guardado.');
     resetForm();
-    await loadPayments();
+    if (currentUser.rol === 'admin') await loadPayments();
   } catch (error) { showMessage(error.message, true); }
   finally { submit.disabled = false; }
 });
@@ -181,4 +249,8 @@ form.addEventListener('submit', async (event) => {
 cancel.addEventListener('click', resetForm);
 document.querySelector('#refresh-button').addEventListener('click', loadPayments);
 connectButton.addEventListener('click', connectServer);
-loadPayments();
+
+fetch('/api/auth/me', { credentials: 'same-origin' })
+  .then(async (response) => response.ok ? response.json() : null)
+  .then((result) => { if (result?.user) enterApp(result.user); })
+  .catch(() => { /* La vista de acceso permanece disponible si el servicio inicia tarde. */ });

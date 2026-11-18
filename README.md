@@ -13,11 +13,15 @@ backend/
   src/
     app.js
     config/db.js
+    auth/                  # sesiones firmadas y hash de contraseña
+    middleware/auth.js     # sesión activa y permisos por rol
+    models/usuarios.model.js
     models/pagos.model.js
+    routes/auth.routes.js
     controllers/pagos.controller.js
     routes/pagos.routes.js
   scripts/              # inspección de esquema y prueba CRUD
-  sql/create-pagos.sql
+  sql/                   # creación aditiva de pagos y usuarios_app
   test/
 frontend/
   index.html
@@ -40,9 +44,17 @@ DB_PASSWORD=             # escribe aquí la contraseña nueva de Aiven
 DB_NAME=...              # ya está en backend/.env
 DB_SSL=true
 DB_CA_PATH=certs/ca.pem
+SESSION_SECRET=secreto_aleatorio_de_al_menos_32_caracteres
+COOKIE_SECURE=false         # true en el servicio Render con HTTPS
 ```
 
 El certificado CA descargado de Aiven está en `backend/certs/ca.pem`; `.gitignore` excluye tanto `backend/.env` como el certificado. El frontend no necesita variables de entorno porque usa la ruta relativa `/api/pagos`.
+
+`SESSION_SECRET` firma las sesiones de inicio de sesión y debe ser distinto para cada entorno. Genéralo en PowerShell, copia el valor directamente a `backend/.env` y no lo compartas ni lo subas a Git:
+
+```powershell
+[Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(48))
+```
 
 ## Instalar e iniciar
 
@@ -70,6 +82,17 @@ npm run db:inspect
 
 La inspección confirmó que `defaultdb` estaba vacía. Se creó la tabla mínima `pagos` con `CREATE TABLE IF NOT EXISTS`; no se borró ni modificó ninguna tabla previa. Para repetir la preparación en un entorno nuevo ejecuta `npm run db:setup` después de inspeccionar.
 
+La autenticación agrega `usuarios_app` sin cambiar `pagos`. Después de revisar que la conexión apunta al esquema esperado, desde `backend/` ejecuta:
+
+```powershell
+npm run db:setup-users
+npm run users:create-demo
+# o crea una cuenta propia con contraseña elegida en el terminal:
+npm run user:create -- usuario_admin admin
+```
+
+`users:create-demo` crea una cuenta de cada rol con claves aleatorias y guarda el texto de acceso solo en `backend/credenciales-roles-local.txt`, ignorado por Git. No vuelvas a ejecutarlo si ese archivo ya existe. `user:create` solicita la contraseña enmascarada en la terminal y la guarda como hash scrypt. Los roles permitidos son `admin`, `consulta` y `registro`. No existe registro público; las cuentas se crean manualmente. `usuarios_app` guarda el nombre, hash, rol y estado, nunca la contraseña en texto legible.
+
 ## API
 
 | Método | Ruta | Función |
@@ -80,6 +103,8 @@ La inspección confirmó que `defaultdb` estaba vacía. Se creó la tabla mínim
 | PUT | `/api/pagos/:id` | Actualizar |
 | DELETE | `/api/pagos/:id` | Eliminar |
 | GET | `/api/health` | Comprobar servidor y base |
+
+La API de pagos exige sesión. `admin` puede consultar y administrar; `consulta` puede leer; `registro` puede crear únicamente. La autorización se verifica en el servidor. Las rutas de sesión son `POST /api/auth/login`, `POST /api/auth/logout` y `GET /api/auth/me`.
 
 Cada pago incluye cliente, servicio, referencia, valor positivo en COP, fecha y estado (`Pendiente` o `Pagado`). El backend valida los campos y usa consultas parametrizadas.
 

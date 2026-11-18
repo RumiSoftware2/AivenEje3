@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('node:path');
 const { checkDatabase } = require('./config/db');
+const authRoutes = require('./routes/auth.routes');
 const pagosRoutes = require('./routes/pagos.routes');
 
 const app = express();
@@ -20,6 +21,7 @@ app.get('/api/health', async (_req, res) => {
   }
 });
 
+app.use('/api/auth', authRoutes);
 app.use('/api/pagos', pagosRoutes);
 app.use('/api', (_req, res) => res.status(404).json({ error: 'Ruta API no encontrada.' }));
 app.use(express.static(path.resolve(__dirname, '../../frontend')));
