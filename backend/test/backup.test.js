@@ -3,8 +3,8 @@ const assert = require('node:assert/strict');
 
 const KEY = 'a'.repeat(64);
 const tables = {
-  pagos: { createSql: 'CREATE TABLE `pagos` (`id` int NOT NULL)', rows: [{ id: 1, cliente: "O'Neil", servicio: 'Agua' }] },
-  usuarios_app: { createSql: 'CREATE TABLE `usuarios_app` (`id` int NOT NULL)', rows: [{ id: 2, usuario: 'admin', password_hash: 'hash' }] }
+  pagos: { createSql: 'CREATE TABLE "defaultdb"."pagos" (\n  "id" int NOT NULL)', rows: [{ id: 1, cliente: "O'Neil", servicio: 'Agua' }] },
+  usuarios_app: { createSql: 'CREATE TABLE "defaultdb"."usuarios_app" (\n  "id" int NOT NULL)', rows: [{ id: 2, usuario: 'admin', password_hash: 'hash' }] }
 };
 
 test('cifra y descifra respaldo autenticado', () => {
@@ -31,6 +31,8 @@ test('prepara SQL con inserts escapados y sin operaciones destructivas', () => {
   process.env.BACKUP_ENCRYPTION_KEY = KEY;
   const backup = require('../src/services/backup.service');
   const sql = backup.toRestoreSql({ format: 'pay-services-backup-v1', createdAt: 'x', tables });
+  assert.match(sql, /CREATE TABLE `pagos`/);
+  assert.doesNotMatch(sql, /`defaultdb`/);
   assert.match(sql, /INSERT INTO `pagos`/);
   assert.match(sql, /O\\'Neil/);
   assert.doesNotMatch(sql, /DROP\s+(TABLE|DATABASE)/i);

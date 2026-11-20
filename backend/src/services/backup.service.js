@@ -33,10 +33,22 @@ function validateSnapshot(snapshot) {
     if (!item || typeof item.createSql !== 'string' || !Array.isArray(item.rows)) {
       throw new Error(`El respaldo no contiene la tabla ${table} correctamente.`);
     }
-    const expected = new RegExp('^CREATE TABLE\\s+`?' + table + '`?\\s*\\(', 'i');
-    if (!expected.test(item.createSql.trim())) throw new Error(`Definición inesperada para ${table}.`);
+    normalizeCreateSql(item.createSql, table);
   }
   return snapshot;
+}
+
+function normalizeCreateSql(createSql, expectedTable) {
+  const identifier = '(?:`([^`]+)`|"([^"]+)"|([A-Za-z0-9_$]+))';
+  const prefix = new RegExp(`^CREATE TABLE\\s+(?:${identifier}\\s*\\.\\s*)?${identifier}\\s*\\(`, 'i');
+  const match = prefix.exec(createSql.trim());
+  if (!match) throw new Error(`Definición inesperada para ${expectedTable}.`);
+  const tableName = match[4] || match[5] || match[6];
+  if (tableName !== expectedTable) throw new Error(`Definición inesperada para ${expectedTable}.`);
+  const openingParenthesis = match[0].lastIndexOf('(');
+  const definition = createSql.trim().slice(openingParenthesis + 1).replace(/"/g, '`');
+  // Exclude the source schema so a restore targets the schema selected by Workbench.
+  return `CREATE TABLE \`${expectedTable}\` (${definition}`;
 }
 
 function decryptBackup(buffer) {
@@ -95,7 +107,7 @@ function toRestoreSql(snapshot) {
   ];
   for (const table of TABLES) {
     const { createSql, rows } = snapshot.tables[table];
-    statements.push(`${createSql};`);
+    statements.push(`${normalizeCreateSql(createSql, table)};`);
     for (const row of rows) {
       const columns = Object.keys(row);
       if (!columns.length) continue;
@@ -108,4 +120,4 @@ function toRestoreSql(snapshot) {
   return `${statements.join('\n\n')}\n`;
 }
 
-module.exports = { createEncryptedBackup, decryptBackup, encryptSnapshot, toRestoreSql, validateSnapshot };
+module.exports = { createEncryptedBackup, decryptBackup, encryptSnapshot, normalizeCreateSql, toRestoreSql, validateSnapshot };
