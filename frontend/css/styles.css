@@ -77,11 +77,14 @@ h1 { margin: 0; color: #153b55; font-size: 27px; line-height: 1.2; }
 .role-banner > div { display: grid; gap: 2px; }
 .role-banner strong { color: #153b55; }
 .role-banner span { color: #49616b; font-size: 13px; }
-.backup-card { display: flex; align-items: center; justify-content: space-between; gap: 18px; border-color: #d9e7d3; background: #fbfdf9; }
+.backup-card { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 18px; border-color: #d9e7d3; background: #fbfdf9; }
+.backup-card > div:first-child { flex: 1 1 440px; min-width: 0; }
+.backup-card > #backup-button { flex: 0 1 auto; }
 .backup-card h2 { margin-bottom: 5px; }
 .backup-card p { margin: 3px 0; color: #536873; font-size: 13px; }
 .backup-status { font-size: 12px !important; }
-.restore-history { flex: 1 0 100%; min-width: 0; margin-top: 8px; padding-top: 14px; border-top: 1px solid #d9e7d3; }
+.restore-history { flex: 1 0 100%; width: 100%; min-width: 0; margin-top: 8px; padding-top: 14px; border-top: 1px solid #d9e7d3; }
+.restore-history table { min-width: 620px; }
 .restore-history h3 { margin: 0 0 4px; color: #244455; font-size: 15px; }
 .restore-history .list-heading { margin-bottom: 8px; }
 .restore-history .list-heading p { margin: 0; }
@@ -164,7 +167,8 @@ footer > p { margin: 0 0 12px; }
   .list-heading { align-items: flex-start; }
   .connection-panel { align-items: flex-start; flex-direction: column; }
   .role-banner { align-items: flex-start; flex-direction: column; }
-  .backup-card { align-items: flex-start; flex-direction: column; }
+  .backup-card { align-items: stretch; flex-direction: column; }
+  .backup-card > #backup-button { width: 100%; }
   .official-logo { width: min(100%, 360px); margin-left: 0; }
   .authors { align-items: flex-start; flex-direction: column; gap: 4px; }
   th, td { padding: 9px 7px; }

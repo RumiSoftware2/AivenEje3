@@ -31,6 +31,7 @@ let connecting = false;
 let currentUser = null;
 const formatMoney = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
 const formatDate = new Intl.DateTimeFormat('es-CO', { dateStyle: 'medium', timeZone: 'UTC' });
+let openRestorationId = null;
 
 async function api(url, options = {}) {
   const response = await fetch(url, { credentials: 'same-origin', ...options });
@@ -215,6 +216,10 @@ async function downloadBackup() {
 function renderRestorations(restorations) {
   restoreHistoryList.replaceChildren();
   restoreHistoryEmpty.hidden = restorations.length !== 0;
+  if (!restorations.some((item) => item.id === openRestorationId && item.estado === 'completa')) {
+    openRestorationId = null;
+    restoreDetails.hidden = true;
+  }
   for (const item of restorations) {
     const row = document.createElement('tr');
     addCell(row, item.id);
@@ -228,7 +233,9 @@ function renderRestorations(restorations) {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'button button-small';
-      button.textContent = 'Ver pagos';
+      const isOpen = item.id === openRestorationId;
+      button.textContent = isOpen ? 'Ocultar pagos' : 'Ver pagos';
+      button.setAttribute('aria-expanded', String(isOpen));
       button.addEventListener('click', () => viewRestoredPayments(item.id));
       action.append(button);
     }
@@ -244,6 +251,15 @@ async function loadRestorations() {
 
 async function viewRestoredPayments(id) {
   if (currentUser?.rol !== 'admin') return;
+  if (openRestorationId === id && !restoreDetails.hidden) {
+    restoreDetails.hidden = true;
+    openRestorationId = null;
+    for (const button of restoreHistoryList.querySelectorAll('button')) {
+      button.textContent = 'Ver pagos';
+      button.setAttribute('aria-expanded', 'false');
+    }
+    return;
+  }
   try {
     const payments = await api(`/api/backups/restauraciones/${id}/pagos`);
     restoredPaymentsList.replaceChildren();
@@ -259,6 +275,13 @@ async function viewRestoredPayments(id) {
       addCell(row, payment.estado);
       restoredPaymentsList.append(row);
     }
+    openRestorationId = id;
+    for (const button of restoreHistoryList.querySelectorAll('button')) {
+      const isOpen = button.closest('tr')?.firstElementChild?.textContent === String(id);
+      button.textContent = isOpen ? 'Ocultar pagos' : 'Ver pagos';
+      button.setAttribute('aria-expanded', String(isOpen));
+    }
+    document.querySelector('#restore-details-title').textContent = `Pagos de la restauración #${id}`;
     restoreDetails.hidden = false;
     restoreDetails.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   } catch (error) { showMessage(error.message, true); }
