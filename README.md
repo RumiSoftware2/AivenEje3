@@ -110,7 +110,9 @@ Cada pago incluye cliente, servicio, referencia, valor positivo en COP, fecha y 
 
 ## Copias de seguridad (Eje 4)
 
-La copia incluye las tablas `pagos` y `usuarios_app` (con hashes de contraseña, nunca contraseñas legibles). Solo `admin` puede solicitarla; la API verifica el rol aunque se intente llamar sin usar la interfaz. El archivo descargado `.psbak` se cifra con AES-256-GCM. Render no conserva copias permanentes y el proyecto no borra respaldos antiguos automáticamente.
+Solo `admin` puede solicitar el proceso; el servidor verifica el rol. Al pulsar **Crear copia y restaurar prueba**, la aplicación toma una instantánea consistente de `pagos` y `usuarios_app`, crea el `.psbak` cifrado con AES-256-GCM y lo descarga. También descifra esa copia en memoria y restaura ambas tablas en copias nuevas de Aiven: `psr_<id>_pagos` y `psr_<id>_usuarios_app`. Las tablas originales no se modifican. La tabla `restauraciones_prueba` registra estado, fecha, nombres de tablas y conteos; el administrador puede consultar el historial y ver los pagos restaurados en la interfaz. Las cuentas restauradas conservan sus hashes, no contraseñas en texto plano.
+
+Las copias restauradas dentro de Aiven se conservan como evidencia de prueba y el sistema no las borra automáticamente. Render no conserva el `.psbak` descargado; el administrador debe guardarlo en la ubicación privada externa acordada por el equipo. Las tablas de prueba adicionales consumen almacenamiento, por lo que el equipo debe acordar cómo gestionarlas antes de un uso prolongado.
 
 Como procedimiento académico propuesto: ejecutar una copia cada semana (domingo, 8:00 p. m.) y antes de cada cambio de estructura; conservar las cuatro copias semanales más recientes (28 días), guardadas en una carpeta cifrada con acceso restringido y replicadas en almacenamiento privado del equipo; mantener una copia previa a cambios hasta validar su resultado. La persona con rol `admin` realiza y registra la copia; otro integrante revisa el registro. Hacer una restauración de prueba mensual en un esquema local vacío y anotar fecha, responsable, resultado y duración. El equipo debe acordar los nombres de responsables y la ubicación privada real antes de entregar la política.
 
@@ -120,9 +122,9 @@ Configura `BACKUP_ENCRYPTION_KEY` con 64 caracteres hexadecimales en `backend/.e
 node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
 ```
 
-Pega el resultado directamente en ambos entornos; no lo guardes en Git, capturas ni en el informe. Inicia sesión como administrador y pulsa **Descargar copia cifrada**; mueve el archivo a la ubicación privada definida por el equipo. Para preparar una restauración local de prueba, coloca el `.psbak` en una ruta privada y, desde `backend/`, ejecuta `npm run db:backup:prepare-restore -- "RUTA\archivo.psbak"`. El SQL generado queda bajo `tmp/restore/` (ignorado por Git); impórtalo solo en un esquema local de prueba vacío, nunca en `defaultdb`. El archivo SQL temporal contiene hashes y debe protegerse y eliminarse tras la verificación.
+Pega el resultado directamente en ambos entornos; no lo guardes en Git, capturas ni en el informe. Inicia sesión como administrador y pulsa **Crear copia y restaurar prueba**. Para preparar además una restauración local desde el archivo descargado, ejecuta desde `backend/` `npm run db:backup:prepare-restore -- "RUTA\archivo.psbak"`. El SQL generado queda bajo `tmp/restore/` (ignorado por Git); impórtalo solo en un esquema local de prueba vacío, nunca en `defaultdb`. El archivo SQL temporal contiene hashes y debe protegerse y eliminarse tras la verificación.
 
-La descarga es manual: no programa copias semanales por sí sola. El calendario, la ubicación externa y el registro de cumplimiento son tareas operativas del equipo.
+La operación sigue siendo manual: no programa copias semanales ni envía el archivo a almacenamiento externo. El calendario, la ubicación externa y el registro de cumplimiento son tareas operativas del equipo.
 
 Ruta administrativa: `POST /api/backups` (requiere una sesión con rol `admin`).
 

@@ -37,3 +37,14 @@ test('prepara SQL con inserts escapados y sin operaciones destructivas', () => {
   assert.match(sql, /O\\'Neil/);
   assert.doesNotMatch(sql, /DROP\s+(TABLE|DATABASE)/i);
 });
+
+test('crea definiciones para tablas nuevas sin calificar con el esquema de origen', () => {
+  const backup = require('../src/services/backup.service');
+  const ddl = backup.restoreCreateSql(
+    'CREATE TABLE "defaultdb"."pagos" (\n  "id" int NOT NULL,\n  CONSTRAINT "chk_pago" CHECK ("id" > 0))',
+    'pagos', 'psr_42_pagos', 42
+  );
+  assert.match(ddl, /^CREATE TABLE `psr_42_pagos`/);
+  assert.match(ddl, /CONSTRAINT `chk_pago_r42`/);
+  assert.doesNotMatch(ddl, /`defaultdb`/);
+});

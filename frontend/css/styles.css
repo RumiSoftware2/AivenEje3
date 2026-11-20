@@ -81,6 +81,11 @@ h1 { margin: 0; color: #153b55; font-size: 27px; line-height: 1.2; }
 .backup-card h2 { margin-bottom: 5px; }
 .backup-card p { margin: 3px 0; color: #536873; font-size: 13px; }
 .backup-status { font-size: 12px !important; }
+.restore-history { flex: 1 0 100%; min-width: 0; margin-top: 8px; padding-top: 14px; border-top: 1px solid #d9e7d3; }
+.restore-history h3 { margin: 0 0 4px; color: #244455; font-size: 15px; }
+.restore-history .list-heading { margin-bottom: 8px; }
+.restore-history .list-heading p { margin: 0; }
+.restore-history #restore-details { margin-top: 18px; }
 
 .card {
   margin: 16px 0;

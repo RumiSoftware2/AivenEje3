@@ -47,11 +47,20 @@
 
       <section class="card backup-card" id="backup-card" aria-labelledby="backup-title" hidden>
         <div>
-          <h2 id="backup-title">Copias de seguridad</h2>
-          <p>Solo el rol administrador puede generar una copia cifrada de pagos y cuentas. Descárgala y guárdala en la carpeta privada de respaldos del equipo.</p>
-          <p class="backup-status" id="backup-status" role="status" aria-live="polite">No se guarda una copia permanente en Render.</p>
+          <h2 id="backup-title">Copia y restauración de prueba</h2>
+          <p>El administrador genera y descarga una copia cifrada. Además, la aplicación restaura sus datos en tablas nuevas de prueba en Aiven y verifica las filas sin modificar las tablas originales.</p>
+          <p class="backup-status" id="backup-status" role="status" aria-live="polite">Las restauraciones se conservan como evidencia en Aiven; Render no guarda el archivo descargado.</p>
         </div>
-        <button class="button button-primary" id="backup-button" type="button">Descargar copia cifrada</button>
+        <button class="button button-primary" id="backup-button" type="button">Crear copia y restaurar prueba</button>
+        <div class="restore-history">
+          <div class="list-heading"><div><h3>Historial de restauraciones</h3><p>Tablas de prueba creadas en la base; las originales permanecen intactas.</p></div><button class="button" id="refresh-restorations" type="button">Actualizar historial</button></div>
+          <p id="restore-history-empty" class="empty-state" hidden>Aún no hay restauraciones de prueba.</p>
+          <div class="table-scroll"><table><thead><tr><th>ID</th><th>Fecha</th><th>Estado</th><th>Pagos</th><th>Cuentas</th><th>Detalle</th></tr></thead><tbody id="restore-history-list"></tbody></table></div>
+          <div id="restore-details" hidden>
+            <h3>Pagos de la restauración seleccionada</h3>
+            <div class="table-scroll"><table><thead><tr><th>ID</th><th>Cliente</th><th>Servicio</th><th>Referencia</th><th>Fecha</th><th>Valor</th><th>Estado</th></tr></thead><tbody id="restored-payments-list"></tbody></table></div>
+          </div>
+        </div>
       </section>
 
     <section class="card" id="payment-form-card" aria-labelledby="form-title">

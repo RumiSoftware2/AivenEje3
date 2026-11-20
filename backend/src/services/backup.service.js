@@ -6,6 +6,7 @@ const MAGIC = Buffer.from('PAYBK001');
 const IV_BYTES = 12;
 const TAG_BYTES = 16;
 const TABLES = ['pagos', 'usuarios_app'];
+const RESTORE_REGISTRY = 'restauraciones_prueba';
 
 function encryptionKey() {
   const value = process.env.BACKUP_ENCRYPTION_KEY || '';
@@ -38,7 +39,7 @@ function validateSnapshot(snapshot) {
   return snapshot;
 }
 
-function normalizeCreateSql(createSql, expectedTable) {
+function normalizeCreateSql(createSql, expectedTable, targetTable = expectedTable) {
   const identifier = '(?:`([^`]+)`|"([^"]+)"|([A-Za-z0-9_$]+))';
   const prefix = new RegExp(`^CREATE TABLE\\s+(?:${identifier}\\s*\\.\\s*)?${identifier}\\s*\\(`, 'i');
   const match = prefix.exec(createSql.trim());
@@ -48,7 +49,21 @@ function normalizeCreateSql(createSql, expectedTable) {
   const openingParenthesis = match[0].lastIndexOf('(');
   const definition = createSql.trim().slice(openingParenthesis + 1).replace(/"/g, '`');
   // Exclude the source schema so a restore targets the schema selected by Workbench.
-  return `CREATE TABLE \`${expectedTable}\` (${definition}`;
+  return `CREATE TABLE \`${targetTable}\` (${definition}`;
+}
+
+function restoreTableName(id, table) {
+  return `psr_${id}_${table}`;
+}
+
+function restoreCreateSql(createSql, sourceTable, targetTable, restoreId) {
+  let statement = normalizeCreateSql(createSql, sourceTable, targetTable);
+  if (/\b(?:FOREIGN\s+KEY|REFERENCES)\b/i.test(statement)) {
+    throw new Error('El esquema contiene relaciones que requieren una restauración de esquema dedicada.');
+  }
+  statement = statement.replace(/\bCONSTRAINT\s+(?:`([^`]+)`|"([^"]+)"|([A-Za-z0-9_$]+))/gi,
+    (_whole, backtickName, quoteName, plainName) => `CONSTRAINT \`${backtickName || quoteName || plainName}_r${restoreId}\``);
+  return statement;
 }
 
 function decryptBackup(buffer) {
@@ -97,6 +112,100 @@ async function createEncryptedBackup() {
   return { buffer: encryptSnapshot(snapshot), snapshot };
 }
 
+async function createBackupAndRestoreTest() {
+  encryptionKey();
+  const snapshot = await createSnapshot();
+  const buffer = encryptSnapshot(snapshot);
+  const restoredSnapshot = decryptBackup(buffer);
+  const connection = await getPool().getConnection();
+  let restoreId;
+  const names = {};
+  try {
+    await connection.query(`CREATE TABLE IF NOT EXISTS \`${RESTORE_REGISTRY}\` (
+      id INT NOT NULL AUTO_INCREMENT,
+      tabla_pagos VARCHAR(64) NOT NULL,
+      tabla_usuarios VARCHAR(64) NOT NULL,
+      cantidad_pagos INT UNSIGNED NOT NULL DEFAULT 0,
+      cantidad_usuarios INT UNSIGNED NOT NULL DEFAULT 0,
+      estado ENUM('en_proceso', 'completa', 'fallida') NOT NULL DEFAULT 'en_proceso',
+      creado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
+    const [insertResult] = await connection.execute(
+      `INSERT INTO \`${RESTORE_REGISTRY}\` (tabla_pagos, tabla_usuarios, cantidad_pagos, cantidad_usuarios, estado)
+       VALUES ('pendiente', 'pendiente', ?, ?, 'en_proceso')`,
+      [restoredSnapshot.tables.pagos.rows.length, restoredSnapshot.tables.usuarios_app.rows.length]
+    );
+    restoreId = insertResult.insertId;
+    names.pagos = restoreTableName(restoreId, 'pagos');
+    names.usuarios_app = restoreTableName(restoreId, 'usuarios_app');
+    await connection.execute(
+      `UPDATE \`${RESTORE_REGISTRY}\` SET tabla_pagos = ?, tabla_usuarios = ? WHERE id = ?`,
+      [names.pagos, names.usuarios_app, restoreId]
+    );
+
+    for (const table of TABLES) {
+      const ddl = restoreCreateSql(restoredSnapshot.tables[table].createSql, table, names[table], restoreId);
+      await connection.query(ddl);
+    }
+
+    await connection.beginTransaction();
+    for (const table of TABLES) {
+      const rows = restoredSnapshot.tables[table].rows;
+      if (!rows.length) continue;
+      const columns = Object.keys(rows[0]);
+      const sql = `INSERT INTO ${mysql.escapeId(names[table])} (${columns.map((column) => mysql.escapeId(column)).join(', ')}) ` +
+        `VALUES (${columns.map(() => '?').join(', ')})`;
+      for (const row of rows) await connection.execute(sql, columns.map((column) => row[column]));
+    }
+
+    for (const table of TABLES) {
+      const [[countRow]] = await connection.query(`SELECT COUNT(*) AS total FROM ${mysql.escapeId(names[table])}`);
+      if (Number(countRow.total) !== restoredSnapshot.tables[table].rows.length) {
+        throw new Error(`La verificación de filas restauradas falló para ${table}.`);
+      }
+    }
+    await connection.execute(`UPDATE \`${RESTORE_REGISTRY}\` SET estado = 'completa' WHERE id = ?`, [restoreId]);
+    await connection.commit();
+    return { buffer, restoreId, names, counts: {
+      pagos: restoredSnapshot.tables.pagos.rows.length,
+      usuarios_app: restoredSnapshot.tables.usuarios_app.rows.length
+    } };
+  } catch (error) {
+    try { await connection.rollback(); } catch { /* preserve original failure */ }
+    if (restoreId) {
+      try { await connection.execute(`UPDATE \`${RESTORE_REGISTRY}\` SET estado = 'fallida' WHERE id = ?`, [restoreId]); }
+      catch { /* preserve original failure */ }
+    }
+    throw error;
+  } finally { connection.release(); }
+}
+
+async function listRestorations() {
+  try {
+    const [rows] = await getPool().execute(
+      `SELECT id, tabla_pagos, tabla_usuarios, cantidad_pagos, cantidad_usuarios, estado, creado_en
+       FROM \`${RESTORE_REGISTRY}\` ORDER BY id DESC LIMIT 50`
+    );
+    return rows;
+  } catch (error) {
+    if (error.code === 'ER_NO_SUCH_TABLE') return [];
+    throw error;
+  }
+}
+
+async function getRestoredPayments(id) {
+  const [rows] = await getPool().execute(
+    `SELECT tabla_pagos FROM \`${RESTORE_REGISTRY}\` WHERE id = ? AND estado = 'completa' LIMIT 1`, [id]
+  );
+  const table = rows[0]?.tabla_pagos;
+  if (!table || table !== restoreTableName(id, 'pagos')) return null;
+  const [payments] = await getPool().query(
+    `SELECT id, cliente, servicio, referencia, valor, fecha_pago, estado FROM ${mysql.escapeId(table)} ORDER BY id`
+  );
+  return payments;
+}
+
 function toRestoreSql(snapshot) {
   validateSnapshot(snapshot);
   const statements = [
@@ -120,4 +229,8 @@ function toRestoreSql(snapshot) {
   return `${statements.join('\n\n')}\n`;
 }
 
-module.exports = { createEncryptedBackup, decryptBackup, encryptSnapshot, normalizeCreateSql, toRestoreSql, validateSnapshot };
+module.exports = {
+  createBackupAndRestoreTest, createEncryptedBackup, decryptBackup, encryptSnapshot,
+  getRestoredPayments, normalizeCreateSql, listRestorations, restoreCreateSql,
+  toRestoreSql, validateSnapshot
+};

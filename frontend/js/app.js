@@ -12,6 +12,10 @@ const listCard = document.querySelector('#payment-list-card');
 const backupCard = document.querySelector('#backup-card');
 const backupButton = document.querySelector('#backup-button');
 const backupStatus = document.querySelector('#backup-status');
+const restoreHistoryList = document.querySelector('#restore-history-list');
+const restoreHistoryEmpty = document.querySelector('#restore-history-empty');
+const restoreDetails = document.querySelector('#restore-details');
+const restoredPaymentsList = document.querySelector('#restored-payments-list');
 const list = document.querySelector('#payment-list');
 const count = document.querySelector('#payment-count');
 const loading = document.querySelector('#loading');
@@ -68,6 +72,7 @@ function enterApp(user) {
   submit.textContent = 'Guardar pago';
   cancel.hidden = true;
   if (user.rol === 'admin' || user.rol === 'consulta') loadPayments();
+  if (user.rol === 'admin') loadRestorations();
 }
 
 function roleName(role) {
@@ -192,12 +197,71 @@ async function downloadBackup() {
     const link = document.createElement('a');
     link.href = url; link.download = name; document.body.append(link); link.click(); link.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-    backupStatus.textContent = 'Copia descargada y cifrada. Muévela ahora a la carpeta privada de respaldos.';
-    showMessage('Copia cifrada descargada.');
+    const restoreId = response.headers.get('x-restore-id');
+    const paymentsTable = response.headers.get('x-restore-payments-table');
+    const usersTable = response.headers.get('x-restore-users-table');
+    const paymentsCount = response.headers.get('x-restore-payments-count');
+    const usersCount = response.headers.get('x-restore-users-count');
+    if (!restoreId || !paymentsTable || !usersTable) throw new Error('Se descargó una respuesta sin confirmación de restauración. Actualiza el historial y revisa Render.');
+    backupStatus.textContent = `Copia cifrada descargada. Restauración #${restoreId} verificada: ${paymentsCount} pagos en ${paymentsTable} y ${usersCount} cuentas en ${usersTable}.`;
+    showMessage(`Copia descargada y restauración #${restoreId} verificada.`);
+    await loadRestorations();
   } catch (error) {
     backupStatus.textContent = 'No se pudo crear la copia. Revisa la configuración y vuelve a intentar.';
     showMessage(error.message, true);
   } finally { backupButton.disabled = false; }
+}
+
+function renderRestorations(restorations) {
+  restoreHistoryList.replaceChildren();
+  restoreHistoryEmpty.hidden = restorations.length !== 0;
+  for (const item of restorations) {
+    const row = document.createElement('tr');
+    addCell(row, item.id);
+    const date = new Date(item.creado_en);
+    addCell(row, Number.isNaN(date.valueOf()) ? String(item.creado_en) : new Intl.DateTimeFormat('es-CO', { dateStyle: 'medium', timeStyle: 'short' }).format(date));
+    addCell(row, item.estado);
+    addCell(row, item.cantidad_pagos);
+    addCell(row, item.cantidad_usuarios);
+    const action = addCell(row, '');
+    if (item.estado === 'completa') {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'button button-small';
+      button.textContent = 'Ver pagos';
+      button.addEventListener('click', () => viewRestoredPayments(item.id));
+      action.append(button);
+    }
+    restoreHistoryList.append(row);
+  }
+}
+
+async function loadRestorations() {
+  if (currentUser?.rol !== 'admin') return;
+  try { renderRestorations(await api('/api/backups/restauraciones')); }
+  catch (error) { showMessage(error.message, true); }
+}
+
+async function viewRestoredPayments(id) {
+  if (currentUser?.rol !== 'admin') return;
+  try {
+    const payments = await api(`/api/backups/restauraciones/${id}/pagos`);
+    restoredPaymentsList.replaceChildren();
+    for (const payment of payments) {
+      const row = document.createElement('tr');
+      addCell(row, payment.id);
+      addCell(row, payment.cliente);
+      addCell(row, payment.servicio);
+      addCell(row, payment.referencia);
+      const date = new Date(`${String(payment.fecha_pago).slice(0, 10)}T00:00:00Z`);
+      addCell(row, formatDate.format(date));
+      addCell(row, formatMoney.format(Number(payment.valor)));
+      addCell(row, payment.estado);
+      restoredPaymentsList.append(row);
+    }
+    restoreDetails.hidden = false;
+    restoreDetails.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  } catch (error) { showMessage(error.message, true); }
 }
 
 function resetForm() {
@@ -283,6 +347,7 @@ cancel.addEventListener('click', resetForm);
 document.querySelector('#refresh-button').addEventListener('click', loadPayments);
 connectButton.addEventListener('click', connectServer);
 backupButton.addEventListener('click', downloadBackup);
+document.querySelector('#refresh-restorations').addEventListener('click', loadRestorations);
 
 fetch('/api/auth/me', { credentials: 'same-origin' })
   .then(async (response) => response.ok ? response.json() : null)

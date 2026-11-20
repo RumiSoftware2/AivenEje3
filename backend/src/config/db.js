@@ -28,7 +28,7 @@ function createPool() {
     connectionLimit: 5,
     queueLimit: 0,
     connectTimeout: 10000,
-    dateStrings: ['DATE']
+    dateStrings: ['DATE', 'DATETIME', 'TIMESTAMP']
   });
 }
 
