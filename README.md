@@ -108,6 +108,24 @@ La API de pagos exige sesión. `admin` puede consultar y administrar; `consulta`
 
 Cada pago incluye cliente, servicio, referencia, valor positivo en COP, fecha y estado (`Pendiente` o `Pagado`). El backend valida los campos y usa consultas parametrizadas.
 
+## Copias de seguridad (Eje 4)
+
+La copia incluye las tablas `pagos` y `usuarios_app` (con hashes de contraseña, nunca contraseñas legibles). Solo `admin` puede solicitarla; la API verifica el rol aunque se intente llamar sin usar la interfaz. El archivo descargado `.psbak` se cifra con AES-256-GCM. Render no conserva copias permanentes y el proyecto no borra respaldos antiguos automáticamente.
+
+Como procedimiento académico propuesto: ejecutar una copia cada semana (domingo, 8:00 p. m.) y antes de cada cambio de estructura; conservar las cuatro copias semanales más recientes (28 días), guardadas en una carpeta cifrada con acceso restringido y replicadas en almacenamiento privado del equipo; mantener una copia previa a cambios hasta validar su resultado. La persona con rol `admin` realiza y registra la copia; otro integrante revisa el registro. Hacer una restauración de prueba mensual en un esquema local vacío y anotar fecha, responsable, resultado y duración. El equipo debe acordar los nombres de responsables y la ubicación privada real antes de entregar la política.
+
+Configura `BACKUP_ENCRYPTION_KEY` con 64 caracteres hexadecimales en `backend/.env` y como variable secreta en Render. Usa la misma clave para descifrar una copia creada en Render. Para generar una clave local en PowerShell sin compartirla en el chat:
+
+```powershell
+node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+```
+
+Pega el resultado directamente en ambos entornos; no lo guardes en Git, capturas ni en el informe. Inicia sesión como administrador y pulsa **Descargar copia cifrada**; mueve el archivo a la ubicación privada definida por el equipo. Para preparar una restauración local de prueba, coloca el `.psbak` en una ruta privada y, desde `backend/`, ejecuta `npm run db:backup:prepare-restore -- "RUTA\archivo.psbak"`. El SQL generado queda bajo `tmp/restore/` (ignorado por Git); impórtalo solo en un esquema local de prueba vacío, nunca en `defaultdb`. El archivo SQL temporal contiene hashes y debe protegerse y eliminarse tras la verificación.
+
+La descarga es manual: no programa copias semanales por sí sola. El calendario, la ubicación externa y el registro de cumplimiento son tareas operativas del equipo.
+
+Ruta administrativa: `POST /api/backups` (requiere una sesión con rol `admin`).
+
 ## Pruebas
 
 Desde `backend/`, `npm test` ejecuta las pruebas unitarias de validación. Con Aiven conectado y el servidor iniciado, `node scripts/smoke-crud.js` prueba el CRUD real y elimina el registro de prueba al terminar.

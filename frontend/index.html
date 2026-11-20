@@ -45,6 +45,15 @@
       </section>
       <div class="message" id="app-message" role="status" aria-live="polite" hidden></div>
 
+      <section class="card backup-card" id="backup-card" aria-labelledby="backup-title" hidden>
+        <div>
+          <h2 id="backup-title">Copias de seguridad</h2>
+          <p>Solo el rol administrador puede generar una copia cifrada de pagos y cuentas. Descárgala y guárdala en la carpeta privada de respaldos del equipo.</p>
+          <p class="backup-status" id="backup-status" role="status" aria-live="polite">No se guarda una copia permanente en Render.</p>
+        </div>
+        <button class="button button-primary" id="backup-button" type="button">Descargar copia cifrada</button>
+      </section>
+
     <section class="card" id="payment-form-card" aria-labelledby="form-title">
       <h2 id="form-title">Registrar pago</h2>
       <form id="payment-form">

@@ -9,6 +9,9 @@ const appMessage = document.querySelector('#app-message');
 const form = document.querySelector('#payment-form');
 const formCard = document.querySelector('#payment-form-card');
 const listCard = document.querySelector('#payment-list-card');
+const backupCard = document.querySelector('#backup-card');
+const backupButton = document.querySelector('#backup-button');
+const backupStatus = document.querySelector('#backup-status');
 const list = document.querySelector('#payment-list');
 const count = document.querySelector('#payment-count');
 const loading = document.querySelector('#loading');
@@ -58,6 +61,7 @@ function enterApp(user) {
   roleDescription.textContent = roleDescriptionText(user.rol);
   formCard.hidden = user.rol === 'consulta';
   listCard.hidden = user.rol === 'registro';
+  backupCard.hidden = user.rol !== 'admin';
   actionsHeading.hidden = user.rol !== 'admin';
   document.querySelector('#refresh-button').hidden = user.rol === 'registro';
   document.querySelector('#form-title').textContent = user.rol === 'registro' ? 'Agregar pago' : 'Registrar pago';
@@ -167,6 +171,35 @@ async function connectServer() {
   }
 }
 
+async function downloadBackup() {
+  if (currentUser?.rol !== 'admin' || backupButton.disabled) return;
+  backupButton.disabled = true;
+  backupStatus.textContent = 'Creando y cifrando la copia…';
+  try {
+    const response = await fetch('/api/backups', { method: 'POST', credentials: 'same-origin' });
+    if (response.status === 401) {
+      showLogin('Tu sesión terminó. Inicia sesión nuevamente.');
+      return;
+    }
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || 'No fue posible crear la copia.');
+    }
+    const file = await response.blob();
+    const disposition = response.headers.get('content-disposition') || '';
+    const name = disposition.match(/filename="([^"]+)"/)?.[1] || 'pay-services-backup.psbak';
+    const url = URL.createObjectURL(file);
+    const link = document.createElement('a');
+    link.href = url; link.download = name; document.body.append(link); link.click(); link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    backupStatus.textContent = 'Copia descargada y cifrada. Muévela ahora a la carpeta privada de respaldos.';
+    showMessage('Copia cifrada descargada.');
+  } catch (error) {
+    backupStatus.textContent = 'No se pudo crear la copia. Revisa la configuración y vuelve a intentar.';
+    showMessage(error.message, true);
+  } finally { backupButton.disabled = false; }
+}
+
 function resetForm() {
   form.reset();
   editingId = null;
@@ -249,6 +282,7 @@ form.addEventListener('submit', async (event) => {
 cancel.addEventListener('click', resetForm);
 document.querySelector('#refresh-button').addEventListener('click', loadPayments);
 connectButton.addEventListener('click', connectServer);
+backupButton.addEventListener('click', downloadBackup);
 
 fetch('/api/auth/me', { credentials: 'same-origin' })
   .then(async (response) => response.ok ? response.json() : null)

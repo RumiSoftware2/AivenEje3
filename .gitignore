@@ -5,3 +5,4 @@ certs/
 coverage/
 npm-debug.log*
 tmp/
+backups/
